@@ -227,8 +227,8 @@ def main():
         payload = ET.tostring(new_item_record, encoding='utf-8')
         print('\nnew item record = ', payload)
 
-        new_scf_item = requests.post(ALMA_SERVER + CREATE_ITEM.format(mms_id=mms_id, holding_id=holding_id), headers=scf_headers, data=payload)
-        print('\nresponse to posting new item in scf = ', new_scf_item.content)
+#        new_scf_item = requests.post(ALMA_SERVER + CREATE_ITEM.format(mms_id=mms_id, holding_id=holding_id), headers=scf_headers, data=payload)
+#        print('\nresponse to posting new item in scf = ', new_scf_item.content)
 
 if __name__ == '__main__':
     main()
