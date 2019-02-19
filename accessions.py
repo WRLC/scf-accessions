@@ -1,5 +1,5 @@
 import csv 
-import json
+import json    # not supported - create bib record
 import os
 import requests
 import sys
@@ -15,7 +15,6 @@ UPDATE_IZ_KEY = IZ_READ_WRITE_KEYS[UPDATE_IZ]
 
 #routes
 GET_BY_BARCODE = '/almaws/v1/items?item_barcode={}'
-CREATE_ITEM = '/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items'
 GET_BIB_BY_NZ_MMS = '/almaws/v1/bibs?nz_mms_id={}'
 GET_BIB_BY_MMS = '/almaws/v1/bibs?mms_id={}'
 CREATE_BIB ='/almaws/v1/bibs?from_nz_mms_id={}'
@@ -126,25 +125,46 @@ def main():
         mms_id = root.find('./bib_data/mms_id').text
         print('\n local mms_id = ', mms_id)
 
-#  Get item/holding_data/holding_id
+#  Get item/holding_data/holding_id & temp_location
 
         holding_id = root.find('./holding_data/holding_id').text
         print('\n holding id = ', holding_id)
+        temp_location = root.find('./holding_data/temp_location').text
+        print('\n temp location = ', temp_location)
 
 #  Get item/item_data/pid
         pid = root.find('./item_data/pid').text
         print('\n pid = ', pid)
+
+#  Get the physical_material_type - need to check later
+        physical_material_type = root.find('./item_data/physical_material_type').text
+        print('\n physical_material_type = ', physical_material_type)
+
+#  Create new item record but remove pid and physical_material_type if necesary
+        new_item_record = ET.fromstring(b'<item></item>')
+        item_data = tree.find('./item_data')
+        pid_element = item_data.find('pid')
+        item_data.remove(pid_element)
+        if physical_material_type == 'ELEC':
+            for physical_material_type in item_data.iter('physical_material_type'):
+                physical_material_type.text = str('')
+        new_item_record.append(item_data)
+        ET.dump(new_item_record)
 
 #  Get item/bib_data/network_numbers/network_number from WRLC NZ
 
         for item in root.findall('./bib_data/network_numbers/network_number'):
             print ('\n mms_id = ', item.text)
             if (item.text).find('WRLC_NETWORK') != -1:
-                print('good one = ', item.text[22:])
+                print('\ngood one = ', item.text[22:])
                 nz_mms_id = item.text[22:]
+
+
 
 #  Search for bib in SCF given the network zone mms_id
         r_scf_bib = requests.get(ALMA_SERVER + GET_BIB_BY_NZ_MMS.format(nz_mms_id), params=scf_get_params)
+
+        print('\nbib info from SCF = ', r_scf_bib.content)
 
         if (r_scf_bib.status_code == requests.codes.ok):
             # We have a bib record in scf
@@ -158,7 +178,12 @@ def main():
             print('\n local bib = ', local_bib)
 
 #  TO DO:  create a bib record for scf from the local bib above
+            empty_bib = b'<bib />'
+#            r_create_bib = requests.post(ALMA_SERVER + CREATE_BIB.format(nz_mms_id), headers=scf_headers, data=empty_bib)  # leave nz_mms_id empty when creating a regular local record.
 
+#            r_create_bib.content
+#            created_bib=r_create_bib.content
+#            print('added bib response = ', created_bib)
 
 #  Create holding - first search for local holding record, then create
 
@@ -167,16 +192,43 @@ def main():
         print('\n local holding = ', local_holding)
 
 #  TO DO:  create holding record for scf from local holding above
-#  TO DO:  create holding record without an ID for posting - must match on local temp location = SCF location, other manipulation...
-#        new_holdings_record ='<holding><holding_id>1</holding_id><msg>dummy record</msg></holding>'
 
+        # parse owning holdings record
+        owning_holdings_record = ET.fromstring(local_holding)
 
-#  Post new holding to SCF
-#        payload = ET.tostring(new_holdings_record, encoding='utf-8')
-#        print('\npayload = ', payload)
+        # extract 852 information
+        eight52_h = owning_holdings_record.find(EIGHT_FIVE_TWO_SUB_H).text
+        eight52_i = owning_holdings_record.find(EIGHT_FIVE_TWO_SUB_I).text
+
+        print(eight52_h)
+        print(eight52_i)
+
+        print(temp_location)
+
+        # Create empty holding record from template
+        new_holdings_record = ET.fromstring(HOLDINGS_TEMPLATE)
+
+        # Now insert the owning call number
+        new_holdings_record.find(EIGHT_FIVE_TWO_SUB_H).text = eight52_h
+        new_holdings_record.find(EIGHT_FIVE_TWO_SUB_I).text = eight52_i
+        new_holdings_record.find(EIGHT_FIVE_TWO_SUB_C).text = temp_location
+
+        ET.dump(new_holdings_record)
+
+        #  Post new holding to SCF
+        payload = ET.tostring(new_holdings_record, encoding='utf-8')
+        print('\npayload = ', payload)
+
+        # Create the new holding record in the SCF
 #        new_holding = requests.post(ALMA_SERVER + CREATE_HOLDING.format(mms_id=mms_id), headers=scf_headers, data=payload)
+#        print('\nnew hold content = ', new_holding.content
 
+        # Create the new item record in the SCF
+        payload = ET.tostring(new_item_record, encoding='utf-8')
+        print('\nnew item record = ', payload)
 
+        new_scf_item = requests.post(ALMA_SERVER + CREATE_ITEM.format(mms_id=mms_id, holding_id=holding_id), headers=scf_headers, data=payload)
+        print('\nresponse to posting new item in scf = ', new_scf_item.content)
 
 if __name__ == '__main__':
     main()
