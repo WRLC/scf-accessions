@@ -221,7 +221,7 @@ def main():
 
         # Create the new holding record in the SCF
 #        new_holding = requests.post(ALMA_SERVER + CREATE_HOLDING.format(mms_id=mms_id), headers=scf_headers, data=payload)
-#        print('\nnew hold content = ', new_holding.content
+#        print('\nnew hold content = ', new_holding.content)
 
         # Create the new item record in the SCF
         payload = ET.tostring(new_item_record, encoding='utf-8')
