@@ -30,19 +30,7 @@ scf_headers_apionly = {'Authorization' : 'apikey ' + UPDATE_IZ_KEY}
 
 # HOLDINGS TEMPLATE - used to create holdings record for SCF
 HOLDINGS_TEMPLATE = b'''
-<holding>
-  <record>
-    <leader>#####nx##a22#####1n#4500</leader>
-    <controlfield tag="008">1011252u####8###4001uueng0000000</controlfield>
-    <datafield ind1="0" ind2=" " tag="852">
-      <subfield code="b">SCF</subfield>
-      <subfield code="c"></subfield>
-      <subfield code="h"></subfield>
-      <subfield code="i"></subfield>
-    </datafield>
-  </record>
-</holding>
-'''
+<holding><record><leader>#####nx##a22#####1n#4500</leader><controlfield tag="008">1011252u####8###4001uueng0000000</controlfield><datafield ind1="0" ind2=" " tag="852"><subfield code="b">SCF</subfield><subfield code="c"></subfield><subfield code="h"></subfield><subfield code="i"></subfield></datafield></record></holding>'''
 
 # Additional elements for records
 EIGHT_FIVE_TWO_SUB_C = ".//record/datafield[@tag='852']/subfield[@code='c']"
