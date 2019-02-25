@@ -275,19 +275,15 @@ def main():
                 item_exists = 1
 
 
-<<<<<<< HEAD
 #  Create the new item record in the SCF
         if (item_exists == 0):
             payload = ET.tostring(new_item_record, encoding='utf-8')
             print('\nnew item record = ', payload)
-=======
-        # Create the new holding record in the SCF
-#        new_holding = requests.post(ALMA_SERVER + CREATE_HOLDING.format(mms_id=mms_id), headers=scf_headers, data=payload)
-#        print('\nnew hold content = ', new_holding.content)
->>>>>>> 9ba65bf213b7052751ec73651b6ec191e8b64a04
 
             new_scf_item = requests.post(ALMA_SERVER + CREATE_ITEM.format(mms_id=scf_mms_id, holding_id=scf_holding_id), headers=scf_headers, data=payload)
             print('\nresponse to posting new item in scf = ', new_scf_item.content)
+
+###  Note:  Error seen in last step - Library Code is not valid. - Check what is created in the item record.
 
 #  This should be end of processing - continue the loop.
 
