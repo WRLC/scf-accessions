@@ -21,6 +21,7 @@ REPORT_FILE = sys.argv[2]
 FROM_IZ_KEY = OWNING_IZ_KEYS[OWNING_IZ]
 UPDATE_IZ_KEY = IZ_READ_WRITE_KEYS[UPDATE_IZ]
 DEFAULT_LOCATION = DEFAULT_LOCATIONS[OWNING_IZ]
+DEFAULT_LOC_DESC = DEFAULT_LOC_DESCS[OWNING_IZ]
 
 #routes
 GET_BY_BARCODE = '/almaws/v1/items?item_barcode={}'
@@ -50,36 +51,6 @@ TEMP_LOCATION = ".//holding_data/temp_location"
 ITEM_DATA = ".//item_data"
 
 
-def alma_get(resource, apikey, params=None, fmt='json'):
-    '''
-    makes a generic alma api call, pass in a resource
-    '''
-    params = params or {}
-    params['apikey'] = apikey
-    params['format'] = fmt
-    r = requests.get(resource, params=params) 
-    r.raise_for_status()
-    return r
-
-def alma_put(resource, apikey, payload=None, params=None, fmt='json'):
-
-    '''
-    makes a generic post request to alma api.
-    '''
-    payload = payload or {}
-    params = params or {}
-    params['format'] = fmt
-    headers =  {
-        'Content-type': 'application/{fmt}'.format(fmt=fmt),
-        'Authorization' : 'apikey ' + apikey,
-    }
-    r = requests.put(resource,
-                     headers=headers,
-                     params=params,
-                     data=payload)
-    r.raise_for_status()
-    return r
-
 def read_report_generator(report):
     cnt = 0
     with open(report) as fh:
@@ -89,11 +60,14 @@ def read_report_generator(report):
 #            logger.debug('BARCODE = %s', barcode)
             cnt += 1
             yield barcode 
+    print('Number of barcodes read = ', cnt)
 #    logger.info('Total number of barcodes read = %s', cnt)
 
 def main():
-    print('default location = ', DEFAULT_LOCATION)
+    print('loc desc', DEFAULT_LOC_DESC)
     count_all_records = 0
+    items_created = 0
+    items_present = 0
     print ('\nreport file = ', REPORT_FILE)
     print('\nscf iz key =', UPDATE_IZ_KEY)
     for barcode in read_report_generator(REPORT_FILE):
@@ -139,7 +113,8 @@ def main():
         temp_location = root.find('./holding_data/temp_location').text
         if (temp_location is None):
             temp_location = DEFAULT_LOCATION
-        print('\n temp location = ', temp_location)
+            temp_loc_desc = DEFAULT_LOC_DESC
+            print('\n temp location = ', temp_location)
 
 #  Get item/item_data/pid
         pid = root.find('./item_data/pid').text
@@ -164,7 +139,7 @@ def main():
 #  Do I need to get the description of location in real time?  Perhaps a look up table will do
         location_element = item_data.find('location')
         location_element.text = temp_location
-        location_element.set('desc', 'WRLC Shared Collections Facility')
+        location_element.set('desc', temp_loc_desc)
 
 #  Made the assumption that policy will be regular/circ.  Perhaps make this a calling parameter of the script in the future.  That would take care of periodicals and non-cirulating things.
         policy_element = item_data.find('policy')
@@ -297,8 +272,10 @@ def main():
             print(child.text)
             if (child.text  == barcode):
                 print('item is already in SCF')
-                print('This does not need to be added.')
-                item_exists = 1
+                print(barcode, ' does not need to be added.\n')
+                item_exists = 1     # flag
+                items_present += 1  # counter
+                break
 
 
 #  Create the new item record in the SCF
@@ -309,7 +286,14 @@ def main():
             new_scf_item = requests.post(ALMA_SERVER + CREATE_ITEM.format(mms_id=scf_mms_id, holding_id=scf_holding_id), headers=scf_headers, data=payload)
             print('\nresponse to posting new item in scf = ', new_scf_item.content)
 
+#  Need to test for correct submission
+#  if correct increment counter
 #  This should be end of processing - continue the loop.
+
+#  Report at end
+    print('Items created = ', items_created)
+    print('Items already present = ', items_present)
+
 
 if __name__ == '__main__':
     main()
