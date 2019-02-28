@@ -20,6 +20,7 @@ OWNING_IZ = sys.argv[1]
 REPORT_FILE = sys.argv[2]
 FROM_IZ_KEY = OWNING_IZ_KEYS[OWNING_IZ]
 UPDATE_IZ_KEY = IZ_READ_WRITE_KEYS[UPDATE_IZ]
+DEFAULT_LOCATION = DEFAULT_LOCATIONS[OWNING_IZ]
 
 #routes
 GET_BY_BARCODE = '/almaws/v1/items?item_barcode={}'
@@ -91,6 +92,7 @@ def read_report_generator(report):
 #    logger.info('Total number of barcodes read = %s', cnt)
 
 def main():
+    print('default location = ', DEFAULT_LOCATION)
     count_all_records = 0
     print ('\nreport file = ', REPORT_FILE)
     print('\nscf iz key =', UPDATE_IZ_KEY)
@@ -104,6 +106,8 @@ def main():
             print('Barcode not found.')
             # break from processing this barcode in  loop
             # log barcode with message for importer to check
+            print('No match for barcode = ', barcode)
+            break
 
         print('\napikey for owner = ', FROM_IZ_KEY)
 
@@ -133,6 +137,8 @@ def main():
         holding_id = root.find('./holding_data/holding_id').text
         print('\n holding id = ', holding_id)
         temp_location = root.find('./holding_data/temp_location').text
+        if (temp_location is None):
+            temp_location = DEFAULT_LOCATION
         print('\n temp location = ', temp_location)
 
 #  Get item/item_data/pid
@@ -148,6 +154,24 @@ def main():
         item_data = tree.find('./item_data')
         pid_element = item_data.find('pid')
         item_data.remove(pid_element)
+
+        library_element = item_data.find('library')
+        library_element.text = 'SCF'
+        library_element.set('desc', 'WRLC - Shared Collections Facility')
+
+        print('lib_ele desc = ', library_element.text)
+
+#  Do I need to get the description of location in real time?  Perhaps a look up table will do
+        location_element = item_data.find('location')
+        location_element.text = temp_location
+        location_element.set('desc', 'WRLC Shared Collections Facility')
+
+#  Made the assumption that policy will be regular/circ.  Perhaps make this a calling parameter of the script in the future.  That would take care of periodicals and non-cirulating things.
+        policy_element = item_data.find('policy')
+        policy_element.text = 'circ'
+        policy_element.set('desc', 'regular')
+
+#  Perhaps do more mapping of material type to Item policy above (ISSUE=perl?)
         if physical_material_type == 'ELEC':
             for physical_material_type in item_data.iter('physical_material_type'):
                 physical_material_type.text = str('')
@@ -156,15 +180,21 @@ def main():
 
 #  Get item/bib_data/network_numbers/network_number from WRLC NZ
 
+        nz_mms_id = 0
         for item in root.findall('./bib_data/network_numbers/network_number'):
             print ('\n NZ_mms_id = ', item.text)
             if (item.text).find('WRLC_NETWORK') != -1:
                 print('\ngood one = ', item.text[22:])
                 nz_mms_id = item.text[22:]
 
+#  Check that NZ bib exists, if not stop and report
+        if (nz_mms_id == 0):
+            print('No NZ Bib record for barcode = ', barcode)
+            break
 
 
 #  Search for bib in SCF given the network zone mms_id
+        scf_mms_id = 0
         r_scf_bib = requests.get(ALMA_SERVER + GET_BIB_BY_NZ_MMS.format(nz_mms_id), params=scf_get_params)
 
         print('\nbib info from SCF = ', r_scf_bib.text)
@@ -177,22 +207,16 @@ def main():
             print('\n scf_mms_id = ', scf_mms_id)
             print('\n scf bib record = ', r_scf_bib.url)
         else:
-            #We need to get/create a bib record from the local IZ
-#            r_local_bib = requests.get(ALMA_SERVER + GET_BIB_BY_MMS.format(mms_id), params={'apikey': FROM_IZ_KEY})
 
-#            local_bib = r_local_bib.content
-#            print('\n local bib = ', local_bib)
-
-#  Create a bib record for scf from the local bib above
+#  Create a bib record for scf 
             empty_bib = b'<bib />'
             r_create_bib = requests.post(ALMA_SERVER + CREATE_BIB.format(nz_mms_id), headers=scf_headers, data=empty_bib)  # leave nz_mms_id empty when creating a regular local record.
 
             r_create_bib.content
-            created_bib=r_create_bib.content
-            print('added bib response = ', created_bib)
+            scf_bib_create_content = ET.fromstring(r_create_bib.content)
+            scf_mms_id = scf_bib_create_content.find('./bib/mms_id').text
 
-#  TO DO:  NEED TO GET SCF scf_mms_id for work later
-
+            print('newly created mms_id = ', scf_mms_id)
 
 #  Need to check if there is a holding record with item's location in SCF
 
@@ -210,10 +234,8 @@ def main():
                     scf_holding_id = child.find('holding_id').text
 
 
-#  Create holding if a SCF one in proper location is not present 
-
 #  Get holding information from local IZ if not present in SCF
-        if (scf_holding_id != 0):
+        if (scf_holding_id == 0):
             r_local_holding = requests.get(ALMA_SERVER + GET_HOLDING.format(mms_id=local_mms_id ,holding_id=holding_id), params={'apikey': FROM_IZ_KEY})
             local_holding = r_local_holding.content
             print('\n local holding = ', local_holding)
@@ -240,14 +262,12 @@ def main():
 
             ET.dump(new_holdings_record)
 
-#  Post new holding to SCF
             payload = ET.tostring(new_holdings_record, encoding='utf-8')
             print('\npayload = ', payload)
 
-#  Create the new holding record in the SCF
+#  Create/Post the new holding record in the SCF
             new_holding = requests.post(ALMA_SERVER + CREATE_HOLDING.format(mms_id=scf_mms_id), headers=scf_headers, data=payload)
             print('\nnew hold content = ', new_holding.content)
-#       if - end
 
 #  End if no holdings that match in SCF
 
@@ -264,6 +284,7 @@ def main():
 
 #  Need to interate through list to see if there is an item record.  If empty,
 #  Need to create the item.  If not, do we need to update??
+#####  Do we need sleep?  I know I do.  Do we need to update the item record?
         item_exists = 0
         for child in scf_item_list.iter('barcode'):
 #            time.sleep(5)
@@ -282,8 +303,6 @@ def main():
 
             new_scf_item = requests.post(ALMA_SERVER + CREATE_ITEM.format(mms_id=scf_mms_id, holding_id=scf_holding_id), headers=scf_headers, data=payload)
             print('\nresponse to posting new item in scf = ', new_scf_item.content)
-
-###  Note:  Error seen in last step - Library Code is not valid. - Check what is created in the item record.
 
 #  This should be end of processing - continue the loop.
 
