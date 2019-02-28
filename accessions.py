@@ -64,12 +64,9 @@ def read_report_generator(report):
 #    logger.info('Total number of barcodes read = %s', cnt)
 
 def main():
-    print('loc desc', DEFAULT_LOC_DESC)
-    count_all_records = 0
     items_created = 0
     items_present = 0
     print ('\nreport file = ', REPORT_FILE)
-    print('\nscf iz key =', UPDATE_IZ_KEY)
     for barcode in read_report_generator(REPORT_FILE):
         print('\nbarcode = ', barcode)
 
@@ -81,7 +78,7 @@ def main():
             # break from processing this barcode in  loop
             # log barcode with message for importer to check
             print('No match for barcode = ', barcode)
-            break
+            continue
 
         print('\napikey for owner = ', FROM_IZ_KEY)
 
@@ -111,10 +108,13 @@ def main():
         holding_id = root.find('./holding_data/holding_id').text
         print('\n holding id = ', holding_id)
         temp_location = root.find('./holding_data/temp_location').text
+        temp_loc_desc = root.find('./holding_data/temp_location').get('desc') 
+        print(' loc desc ', temp_loc_desc)
         if (temp_location is None):
             temp_location = DEFAULT_LOCATION
             temp_loc_desc = DEFAULT_LOC_DESC
             print('\n temp location = ', temp_location)
+            print('\n tmp loc desc = ', temp_loc_desc)
 
 #  Get item/item_data/pid
         pid = root.find('./item_data/pid').text
@@ -139,7 +139,8 @@ def main():
 #  Do I need to get the description of location in real time?  Perhaps a look up table will do
         location_element = item_data.find('location')
         location_element.text = temp_location
-        location_element.set('desc', temp_loc_desc)
+        if (location_element != ''):
+            location_element.set('desc', temp_loc_desc)
 
 #  Made the assumption that policy will be regular/circ.  Perhaps make this a calling parameter of the script in the future.  That would take care of periodicals and non-cirulating things.
         policy_element = item_data.find('policy')
@@ -165,7 +166,7 @@ def main():
 #  Check that NZ bib exists, if not stop and report
         if (nz_mms_id == 0):
             print('No NZ Bib record for barcode = ', barcode)
-            break
+            continue
 
 
 #  Search for bib in SCF given the network zone mms_id
@@ -185,7 +186,7 @@ def main():
 
 #  Create a bib record for scf 
             empty_bib = b'<bib />'
-            r_create_bib = requests.post(ALMA_SERVER + CREATE_BIB.format(nz_mms_id), headers=scf_headers, data=empty_bib)  # leave nz_mms_id empty when creating a regular local record.
+            r_create_bib = requests.post(ALMA_SERVER + CREATE_BIB.format(nz_mms_id), headers=scf_headers, data=empty_bib) 
 
             r_create_bib.content
             scf_bib_create_content = ET.fromstring(r_create_bib.content)
@@ -207,6 +208,7 @@ def main():
                 if (child.find('location').text == temp_location):
                     print(child.find('holding_id').text)
                     scf_holding_id = child.find('holding_id').text
+                    break
 
 
 #  Get holding information from local IZ if not present in SCF
@@ -285,6 +287,13 @@ def main():
 
             new_scf_item = requests.post(ALMA_SERVER + CREATE_ITEM.format(mms_id=scf_mms_id, holding_id=scf_holding_id), headers=scf_headers, data=payload)
             print('\nresponse to posting new item in scf = ', new_scf_item.content)
+
+            new_scf_item_record = ET.fromstring(new_scf_item.content)
+            if (new_scf_item.status_code != requests.codes.ok):
+                print('A new item was not created ')
+                items_present += 1
+            else:
+                items_created += 1
 
 #  Need to test for correct submission
 #  if correct increment counter
