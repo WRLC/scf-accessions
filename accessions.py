@@ -269,6 +269,11 @@ def main():
             new_holding = requests.post(ALMA_SERVER + CREATE_HOLDING.format(mms_id=scf_mms_id), headers=scf_headers, data=payload)
             print('\nnew hold content = ', new_holding.content)
 
+            new_scf_hold_record = ET.fromstring(new_holdings.content)
+            scf_holding_id = new_scf_hold_record('holding_id').text
+            print('new scf_holding_id = ', scf_holding_id)
+
+
 #  End if no holdings that match in SCF
 
 #  At this point we should have a scf bib and a location matching holding record
