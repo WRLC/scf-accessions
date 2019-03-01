@@ -1,7 +1,7 @@
 # scf-accessions
 Batch job to accession barcodes into the SCF
 
-#set up a virtual environment</br>
+# set up a virtual environment</br>
 python3 -m venv venv </br>
 source venv/bin/activate
 
