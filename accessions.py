@@ -22,6 +22,8 @@ FROM_IZ_KEY = OWNING_IZ_KEYS[OWNING_IZ]
 UPDATE_IZ_KEY = IZ_READ_WRITE_KEYS[UPDATE_IZ]
 DEFAULT_LOCATION = DEFAULT_LOCATIONS[OWNING_IZ]
 DEFAULT_LOC_DESC = DEFAULT_LOC_DESCS[OWNING_IZ]
+SCF_LOC = ''
+SCF_DESC = ''
 
 #routes
 GET_BY_BARCODE = '/almaws/v1/items?item_barcode={}'
@@ -51,6 +53,32 @@ TEMP_LOCATION = ".//holding_data/temp_location"
 ITEM_DATA = ".//item_data"
 
 
+def get_GT_location(loc):
+    if (loc in ['ocs', 'ocwdc']):
+        SCF_LOC = 'wrlc gtmo'
+        SCF_DESC = 'WRLC GT Monographs'
+    elif (loc == 'ocsk'):
+        SCF_LOC = 'wrlc gtkib'
+        SCF_DESC = 'WRLC GT Bioethics Mono'
+    elif (loc == 'ocskp'):
+        SCF_LOC = 'wrlc gtkip'
+        SCF_DESC = 'WRLC GT Bioethics Per'
+    elif (loc in ['ocsmr', 'ocswd']):
+        SCF_LOC = 'wrlc gtspe'
+        SCF_DESC = 'WRLC GT Spec Coll'
+    elif (loc == 'ocsv'):
+        SCF_LOC = 'wrlc gtv'
+        SCF_DESC = 'WRLC GT Media Non Circ'
+    elif (loc == 'ocsvc'):
+        SCF_LOC = 'wrlc gtvc'
+        SCF_DESC = 'WRLC GT Video Recording Circ'
+    else:
+        SCF_LOC = DEFAULT_LOCATION
+        SCF_DESC = DEFAULT_LOC_DESC
+    print('SCF_LOC in get = ', SCF_LOC)
+    return [SCF_LOC, SCF_DESC]
+
+
 def read_report_generator(report):
     cnt = 0
     with open(report) as fh:
@@ -66,6 +94,8 @@ def read_report_generator(report):
 def main():
     items_created = 0
     items_present = 0
+    LogFile = UPDATE_IZ + 'ACC' + OWNING_IZ + 'log.' + time.strftime('%m%d%H%M', time.localtime())
+    print ('LogFile = ', LogFile)
     print ('\nreport file = ', REPORT_FILE)
     for barcode in read_report_generator(REPORT_FILE):
         print('\nbarcode = ', barcode)
@@ -109,12 +139,18 @@ def main():
         print('\n holding id = ', holding_id)
         temp_location = root.find('./holding_data/temp_location').text
         temp_loc_desc = root.find('./holding_data/temp_location').get('desc') 
-        print(' loc desc ', temp_loc_desc)
         if (temp_location is None):
-            temp_location = DEFAULT_LOCATION
-            temp_loc_desc = DEFAULT_LOC_DESC
-            print('\n temp location = ', temp_location)
-            print('\n tmp loc desc = ', temp_loc_desc)
+            if ( OWNING_IZ ==  '4111' ):
+                perm_loc = root.find('./item_data/location').text
+                print('perm_loc = ', perm_loc)
+                GTLoc = get_GT_location(perm_loc)
+                temp_location = GTLoc[0] 
+                temp_loc_desc = GTLoc[1]
+            else:
+                temp_location = DEFAULT_LOCATION
+                temp_loc_desc = DEFAULT_LOC_DESC
+        print('\n temp location = ', temp_location)
+        print('\n tmp loc desc = ', temp_loc_desc)
 
 #  Get item/item_data/pid
         pid = root.find('./item_data/pid').text
@@ -143,6 +179,7 @@ def main():
             location_element.set('desc', temp_loc_desc)
 
 #  Made the assumption that policy will be regular/circ.  Perhaps make this a calling parameter of the script in the future.  That would take care of periodicals and non-cirulating things.
+##  Can we map some basic policies or is this okay?
         policy_element = item_data.find('policy')
         policy_element.text = 'circ'
         policy_element.set('desc', 'regular')
@@ -151,6 +188,8 @@ def main():
         if physical_material_type == 'ELEC':
             for physical_material_type in item_data.iter('physical_material_type'):
                 physical_material_type.text = str('')
+#                physical_material_type.text = str('BOOK')
+#   Do we also need a desc = ?
         new_item_record.append(item_data)
         ET.dump(new_item_record)
 
@@ -173,8 +212,6 @@ def main():
         scf_mms_id = 0
         r_scf_bib = requests.get(ALMA_SERVER + GET_BIB_BY_NZ_MMS.format(nz_mms_id), params=scf_get_params)
 
-        print('\nbib info from SCF = ', r_scf_bib.text)
-
         if (r_scf_bib.status_code == requests.codes.ok):
             # We have a bib record in scf
             r_scf_bib.content
@@ -184,7 +221,7 @@ def main():
             print('\n scf bib record = ', r_scf_bib.url)
         else:
 
-#  Create a bib record for scf 
+#  Create a bib record for scf    
             empty_bib = b'<bib />'
             r_create_bib = requests.post(ALMA_SERVER + CREATE_BIB.format(nz_mms_id), headers=scf_headers, data=empty_bib) 
 
@@ -197,6 +234,7 @@ def main():
 #  Need to check if there is a holding record with item's location in SCF
 
         r_scf_holding = requests.get(ALMA_SERVER + GET_HOLDINGS_LIST.format(mms_id=scf_mms_id), params=scf_get_params)
+        print('holdings url = ', r_scf_holding.url)
         scf_hold_list = ET.fromstring(r_scf_holding.content)
 
 #  Need to interate through list, search for location match to get holding_id
@@ -216,13 +254,16 @@ def main():
             r_local_holding = requests.get(ALMA_SERVER + GET_HOLDING.format(mms_id=local_mms_id ,holding_id=holding_id), params={'apikey': FROM_IZ_KEY})
             local_holding = r_local_holding.content
             print('\n local holding = ', local_holding)
-
+ 
             # parse owning holdings record
             owning_holdings_record = ET.fromstring(local_holding)
 
             # extract 852 information
             eight52_h = owning_holdings_record.find(EIGHT_FIVE_TWO_SUB_H).text
-            eight52_i = owning_holdings_record.find(EIGHT_FIVE_TWO_SUB_I).text
+            if (owning_holdings_record.find(EIGHT_FIVE_TWO_SUB_I) is None):
+                eight52_i = ''
+            else: 
+                eight52_i = owning_holdings_record.find(EIGHT_FIVE_TWO_SUB_I).text
 
             print(eight52_h)
             print(eight52_i)
@@ -240,16 +281,20 @@ def main():
             ET.dump(new_holdings_record)
 
             payload = ET.tostring(new_holdings_record, encoding='utf-8')
-            print('\npayload = ', payload)
+            print('\nnew holdings payload = ', payload)
 
-#  Create/Post the new holding record in the SCF
+#  Create/Post the new holding record in the SCF    ##### Uncomment
+            new_holding =''
             new_holding = requests.post(ALMA_SERVER + CREATE_HOLDING.format(mms_id=scf_mms_id), headers=scf_headers, data=payload)
-            print('\nnew hold content = ', new_holding.content)
+            if (new_holding.status_code == requests.codes.ok):
+                print('\nnew hold content = ', new_holding.content)
 
-            new_scf_hold_record = ET.fromstring(new_holdings.content)
-            scf_holding_id = new_scf_hold_record('holding_id').text
-            print('new scf_holding_id = ', scf_holding_id)
-
+                new_scf_hold_record = ET.fromstring(new_holding.content)
+                scf_holding_id = new_scf_hold_record.find('holding_id').text
+                print('new scf_holding_id = ', scf_holding_id)
+            else:
+                print('did not create holding record, maybe there was a holding record')
+                continue
 
 #  End if no holdings that match in SCF
 
@@ -261,7 +306,7 @@ def main():
 
         scf_item_list = ET.fromstring(scf_item_record.content)
         print('\n\n')
-#        ET.dump(scf_item_list)
+        ET.dump(scf_item_list)
         print('\n\n')
 
 #  Need to interate through list to see if there is an item record.  If empty,
@@ -286,13 +331,12 @@ def main():
             print('\nnew item record = ', payload)
 
             new_scf_item = requests.post(ALMA_SERVER + CREATE_ITEM.format(mms_id=scf_mms_id, holding_id=scf_holding_id), headers=scf_headers, data=payload)
-            print('\nresponse to posting new item in scf = ', new_scf_item.content)
 
-            new_scf_item_record = ET.fromstring(new_scf_item.content)
             if (new_scf_item.status_code != requests.codes.ok):
                 print('A new item was not created ')
                 items_present += 1
             else:
+                new_scf_item_record = ET.fromstring(new_scf_item.content)
                 items_created += 1
 
 #  Need to test for correct submission
