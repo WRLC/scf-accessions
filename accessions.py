@@ -60,6 +60,9 @@ def get_GT_location(loc):
     elif (loc == 'ocsk'):
         SCF_LOC = 'wrlc gtkib'
         SCF_DESC = 'WRLC GT Bioethics Mono'
+    elif (loc == 'ocsp'):      #  Currently does not handle ocsp for DISCARD
+        SCF_LOC = 'wrlc gtsp'
+        SCF_DESC = 'WRLC GT Shared Periodicals'
     elif (loc == 'ocskp'):
         SCF_LOC = 'wrlc gtkip'
         SCF_DESC = 'WRLC GT Bioethics Per'
@@ -99,10 +102,14 @@ def main():
     print ('\nreport file = ', REPORT_FILE)
     for barcode in read_report_generator(REPORT_FILE):
         print('\nbarcode = ', barcode)
+        local_mms_id = 0
+        holding_id = 0
+        pid = 0
 
         # step one, retrieve by barcode
         r_owner_master_record = requests.get(ALMA_SERVER + GET_BY_BARCODE.format(barcode), params = {'apikey': FROM_IZ_KEY})
 
+        print('encoding at start = ', r_owner_master_record.encoding)
         if (r_owner_master_record.status_code != requests.codes.ok):
             print('Barcode not found.')
             # break from processing this barcode in  loop
@@ -234,6 +241,7 @@ def main():
                 print('newly created mms_id = ', scf_mms_id)
             else:
                 print('Could not create SCF bib record for BC = ', barcode)
+                print('encoding r_create_bib = ', r_create_bib.encoding)
                 continue
 
 #  Need to check if there is a holding record with item's location in SCF
@@ -252,6 +260,8 @@ def main():
                     print(child.find('holding_id').text)
                     scf_holding_id = child.find('holding_id').text
                     break
+                else:
+                    print("could not find holding in list")
 
 
 #  Get holding information from local IZ if not present in SCF
@@ -313,8 +323,8 @@ def main():
 
         scf_item_list = ET.fromstring(scf_item_record.content)
         print('\n\n')
-        ET.dump(scf_item_list)
-        print('\n\n')
+#        ET.dump(scf_item_list)
+#        print('\n\n')
 
 #  Need to interate through list to see if there is an item record.  If empty,
 #  Need to create the item.  If not, do we need to update??
