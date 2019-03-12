@@ -224,7 +224,9 @@ def main():
 #  Create a bib record for scf    
             empty_bib = b'<bib />'
             r_create_bib = requests.post(ALMA_SERVER + CREATE_BIB.format(nz_mms_id), headers=scf_headers, data=empty_bib) 
+            time.sleep(5)
             if (r_create_bib.status_code == requests.codes.ok):
+                print('encoding r_create_bib = ', r_create_bib.encoding)
                 r_create_bib.content
                 scf_bib_create_content = ET.fromstring(r_create_bib.content)
                 scf_mms_id = scf_bib_create_content.find('./bib/mms_id').text
@@ -289,8 +291,10 @@ def main():
 #  Create/Post the new holding record in the SCF    ##### Uncomment
             new_holding =''
             new_holding = requests.post(ALMA_SERVER + CREATE_HOLDING.format(mms_id=scf_mms_id), headers=scf_headers, data=payload)
+            time.sleep(5)
             if (new_holding.status_code == requests.codes.ok):
                 print('\nnew hold content = ', new_holding.content)
+                print('holding encoding = ', new_holding.encoding)
 
                 new_scf_hold_record = ET.fromstring(new_holding.content)
                 scf_holding_id = new_scf_hold_record.find('holding_id').text
@@ -317,7 +321,6 @@ def main():
 #####  Do we need sleep?  I know I do.  Do we need to update the item record?
         item_exists = 0
         for child in scf_item_list.iter('barcode'):
-#            time.sleep(5)
             print('in the list')
             print(child.text)
             if (child.text  == barcode):
@@ -334,8 +337,9 @@ def main():
             print('\nnew item record = ', payload)
 
             new_scf_item = requests.post(ALMA_SERVER + CREATE_ITEM.format(mms_id=scf_mms_id, holding_id=scf_holding_id), headers=scf_headers, data=payload)
-
+            time.sleep(5)
             if (new_scf_item.status_code != requests.codes.ok):
+                print('SCF item encode = ', new_scf_item.encoding)
                 print('A new item was not created ')
                 items_present += 1
             else:
