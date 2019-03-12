@@ -261,7 +261,7 @@ def main():
             # extract 852 information
             eight52_h = owning_holdings_record.find(EIGHT_FIVE_TWO_SUB_H).text
             if (owning_holdings_record.find(EIGHT_FIVE_TWO_SUB_I) is None):
-                eight52_i = ''
+                eight52_i = str('')
             else: 
                 eight52_i = owning_holdings_record.find(EIGHT_FIVE_TWO_SUB_I).text
 
