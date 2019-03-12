@@ -118,7 +118,7 @@ def main():
 
         r_owner_master_record.url
 
-        print('\nurl = ', r_owner_master_record.url)
+        print('\nurl for full record = ', r_owner_master_record.url)
 
 #  Set up xml tree so we can parse for data 
 
@@ -224,12 +224,15 @@ def main():
 #  Create a bib record for scf    
             empty_bib = b'<bib />'
             r_create_bib = requests.post(ALMA_SERVER + CREATE_BIB.format(nz_mms_id), headers=scf_headers, data=empty_bib) 
+            if (r_create_bib.status_code == requests.codes.ok):
+                r_create_bib.content
+                scf_bib_create_content = ET.fromstring(r_create_bib.content)
+                scf_mms_id = scf_bib_create_content.find('./bib/mms_id').text
 
-            r_create_bib.content
-            scf_bib_create_content = ET.fromstring(r_create_bib.content)
-            scf_mms_id = scf_bib_create_content.find('./bib/mms_id').text
-
-            print('newly created mms_id = ', scf_mms_id)
+                print('newly created mms_id = ', scf_mms_id)
+            else:
+                print('Could not create SCF bib record for BC = ', barcode)
+                continue
 
 #  Need to check if there is a holding record with item's location in SCF
 
