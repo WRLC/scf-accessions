@@ -187,9 +187,9 @@ def main():
 #  Perhaps do more mapping of material type to Item policy above (ISSUE=perl?)
         if physical_material_type == 'ELEC':
             for physical_material_type in item_data.iter('physical_material_type'):
-                physical_material_type.text = str('')
-#                physical_material_type.text = str('BOOK')
-#   Do we also need a desc = ?
+                physical_material_type.text = str('OTHER')
+                physical_material_type.set('desc', 'Other')
+                print('Check material type for BC =', barcode)
         new_item_record.append(item_data)
         ET.dump(new_item_record)
 
