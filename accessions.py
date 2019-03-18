@@ -5,12 +5,7 @@ import os
 import requests
 import sys
 import xml.etree.ElementTree as ET
-
-#  Set up logging of progess and problems
-#import logging
-#from logging.config import fileConfig 
-#fileConfig('logging_config.ini')
-#logger = logging.getLogger()
+import logging
 
 #  Local keys and settings
 from settings import *
@@ -78,7 +73,7 @@ def get_GT_location(loc):
     else:
         SCF_LOC = DEFAULT_LOCATION
         SCF_DESC = DEFAULT_LOC_DESC
-    print('SCF_LOC in get = ', SCF_LOC)
+    logging.info('SCF_LOC in get = ' + SCF_LOC)
     return [SCF_LOC, SCF_DESC]
 
 
@@ -86,22 +81,33 @@ def read_report_generator(report):
     cnt = 0
     with open(report) as fh:
         for barcode in fh:
-#            print('\nbarcode = ', barcode)
             barcode = barcode.rstrip('\n')
-#            logger.debug('BARCODE = %s', barcode)
             cnt += 1
             yield barcode 
     print('Number of barcodes read = ', cnt)
-#    logger.info('Total number of barcodes read = %s', cnt)
 
 def main():
+
+#  Setting up logging to catch problem barcodes and other issues
+    LogFile = UPDATE_IZ + 'ACC' + OWNING_IZ + 'log.' + time.strftime('%m%d%H%M', time.localtime())
+    formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s', datefmt='%m/%d/%Y %H:%M:%S')
+    lh = logging.FileHandler(LogFile)
+    lh.setFormatter(formatter)
+    logging.getLogger().addHandler(lh)
+#    logging.getLogger().setLevel(logging.DEBUG)     #  Extreme debug
+#    logging.getLogger().setLevel(logging.WARNING)   #  Setting for reporting
+    logging.getLogger().setLevel(logging.INFO)      #  Setting for debugging
+
+#  Initialize Counts for report
+    items_read = 0
     items_created = 0
     items_present = 0
-    LogFile = UPDATE_IZ + 'ACC' + OWNING_IZ + 'log.' + time.strftime('%m%d%H%M', time.localtime())
-    print ('LogFile = ', LogFile)
-    print ('\nreport file = ', REPORT_FILE)
+    items_missing = 0
+
+    logging.warning('Name of File used, ' + REPORT_FILE)
     for barcode in read_report_generator(REPORT_FILE):
-        print('\nbarcode = ', barcode)
+        logging.warning('PROCESSING BARCODE, ' + barcode)
+        items_read += 1
         local_mms_id = 0
         holding_id = 0
         pid = 0
@@ -109,23 +115,17 @@ def main():
         # step one, retrieve by barcode
         r_owner_master_record = requests.get(ALMA_SERVER + GET_BY_BARCODE.format(barcode), params = {'apikey': FROM_IZ_KEY})
 
-        print('encoding at start = ', r_owner_master_record.encoding)
         if (r_owner_master_record.status_code != requests.codes.ok):
-            print('Barcode not found.')
+            items_missing += 1 
             # break from processing this barcode in  loop
             # log barcode with message for importer to check
-            print('No match for barcode = ', barcode)
+            logging.warning('No match for barcode = ' + barcode)
+            logging.info(r_owner_master_record.text)
             continue
 
-        print('\napikey for owner = ', FROM_IZ_KEY)
-
-        owner_tree = r_owner_master_record.content
-
-        print('\nrecord content = ', owner_tree)
-
-        r_owner_master_record.url
-
-        print('\nurl for full record = ', r_owner_master_record.url)
+        #debug - set to info
+        logging.debug('record content = ' + r_owner_master_record.text)
+        logging.debug('url for full record = ' + r_owner_master_record.url)
 
 #  Set up xml tree so we can parse for data 
 
@@ -138,34 +138,34 @@ def main():
 #  Get item/bib_data/mms_id
 
         local_mms_id = root.find('./bib_data/mms_id').text
-        print('\n local_mms_id = ', local_mms_id)
+        logging.info('local_mms_id = ' + local_mms_id)
 
 #  Get item/holding_data/holding_id & temp_location
 
         holding_id = root.find('./holding_data/holding_id').text
-        print('\n holding id = ', holding_id)
+        logging.info('holding id = ' + holding_id)
         temp_location = root.find('./holding_data/temp_location').text
         temp_loc_desc = root.find('./holding_data/temp_location').get('desc') 
         if (temp_location is None):
             if ( OWNING_IZ ==  '4111' ):
                 perm_loc = root.find('./item_data/location').text
-                print('perm_loc = ', perm_loc)
+                logging.debug('perm_loc = ' + perm_loc)
                 GTLoc = get_GT_location(perm_loc)
                 temp_location = GTLoc[0] 
                 temp_loc_desc = GTLoc[1]
             else:
                 temp_location = DEFAULT_LOCATION
                 temp_loc_desc = DEFAULT_LOC_DESC
-        print('\n temp location = ', temp_location)
-        print('\n tmp loc desc = ', temp_loc_desc)
+        logging.debug('temp location = ' + temp_location)
+        logging.debug('tmp loc desc = ' + temp_loc_desc)
 
 #  Get item/item_data/pid
         pid = root.find('./item_data/pid').text
-        print('\n pid = ', pid)
+        logging.info('pid = ' + pid)
 
 #  Get the physical_material_type - need to check later
         physical_material_type = root.find('./item_data/physical_material_type').text
-        print('\n physical_material_type = ', physical_material_type)
+        logging.info('physical_material_type = ' + physical_material_type)
 
 #  Create new item record but remove pid and physical_material_type if necesary
         new_item_record = ET.fromstring(b'<item></item>')
@@ -177,7 +177,7 @@ def main():
         library_element.text = 'SCF'
         library_element.set('desc', 'WRLC - Shared Collections Facility')
 
-        print('lib_ele desc = ', library_element.text)
+        logging.info('lib_ele desc = ' + library_element.text)
 
 #  Do I need to get the description of location in real time?  Perhaps a look up table will do
         location_element = item_data.find('location')
@@ -196,22 +196,24 @@ def main():
             for physical_material_type in item_data.iter('physical_material_type'):
                 physical_material_type.text = str('OTHER')
                 physical_material_type.set('desc', 'Other')
-                print('Check material type for BC =', barcode)
+                logging.warning('Check material type for BC =' + barcode)
         new_item_record.append(item_data)
-        ET.dump(new_item_record)
+#        logging.info('ABOUT to DUMP new item record')
+#        ET.dump(new_item_record)
 
 #  Get item/bib_data/network_numbers/network_number from WRLC NZ
 
         nz_mms_id = 0
         for item in root.findall('./bib_data/network_numbers/network_number'):
-            print ('\n NZ_mms_id = ', item.text)
+            logging.debug('NZ_mms_id = ' + item.text)
             if (item.text).find('WRLC_NETWORK') != -1:
-                print('\ngood one = ', item.text[22:])
+                logging.debug('good one = ' + item.text[22:])
                 nz_mms_id = item.text[22:]
+                logging.warning('nz_mms_id = ' + nz_mms_id)
 
 #  Check that NZ bib exists, if not stop and report
         if (nz_mms_id == 0):
-            print('No NZ Bib record for barcode = ', barcode)
+            logging.info('No NZ Bib record for barcode = ' +  barcode)
             continue
 
 
@@ -224,51 +226,49 @@ def main():
             r_scf_bib.content
             scf_bib_content = ET.fromstring(r_scf_bib.content)
             scf_mms_id = scf_bib_content.find('./bib/mms_id').text
-            print('\n scf_mms_id = ', scf_mms_id)
-            print('\n scf bib record = ', r_scf_bib.url)
+            logging.warning('We already have scf_mms_id = ' + scf_mms_id)
+            logging.warning('scf bib record = ' + r_scf_bib.url)
         else:
+            logging.info('We need to create bib' + r_scf_bib.text)
 
 #  Create a bib record for scf    
             empty_bib = b'<bib />'
             r_create_bib = requests.post(ALMA_SERVER + CREATE_BIB.format(nz_mms_id), headers=scf_headers, data=empty_bib) 
             time.sleep(5)
             if (r_create_bib.status_code == requests.codes.ok):
-                print('encoding r_create_bib = ', r_create_bib.encoding)
-                r_create_bib.content
                 scf_bib_create_content = ET.fromstring(r_create_bib.content)
                 scf_mms_id = scf_bib_create_content.find('./bib/mms_id').text
 
-                print('newly created mms_id = ', scf_mms_id)
+                logging.info('newly created mms_id = ' + scf_mms_id)
             else:
-                print('Could not create SCF bib record for BC = ', barcode)
-                print('encoding r_create_bib = ', r_create_bib.encoding)
+                logging.warning('Could not create SCF bib record for BC = ', barcode)
+                logging.warning('Could not create SCF bib ' + r_create_bib.text)
                 continue
 
 #  Need to check if there is a holding record with item's location in SCF
 
         r_scf_holding = requests.get(ALMA_SERVER + GET_HOLDINGS_LIST.format(mms_id=scf_mms_id), params=scf_get_params)
-        print('holdings url = ', r_scf_holding.url)
+        logging.info('scf holdings url = ' + r_scf_holding.url)
         scf_hold_list = ET.fromstring(r_scf_holding.content)
 
 #  Need to interate through list, search for location match to get holding_id
         scf_holding_id = 0
         for child in scf_hold_list:
             if (child.tag == 'holding'):
-                print('under holding')
-                print('temp loc = ', temp_location)
+                logging.info('looking for temp loc = ' + temp_location)
                 if (child.find('location').text == temp_location):
-                    print(child.find('holding_id').text)
+                    logging.info(child.find('holding_id').text)
                     scf_holding_id = child.find('holding_id').text
                     break
                 else:
-                    print("could not find holding in list")
+                    logging.info("Could not find holding in list")
 
 
 #  Get holding information from local IZ if not present in SCF
         if (scf_holding_id == 0):
             r_local_holding = requests.get(ALMA_SERVER + GET_HOLDING.format(mms_id=local_mms_id ,holding_id=holding_id), params={'apikey': FROM_IZ_KEY})
             local_holding = r_local_holding.content
-            print('\n local holding = ', local_holding)
+            logging.info('local holding = ' + local_holding)
  
             # parse owning holdings record
             owning_holdings_record = ET.fromstring(local_holding)
@@ -280,10 +280,10 @@ def main():
             else: 
                 eight52_i = owning_holdings_record.find(EIGHT_FIVE_TWO_SUB_I).text
 
-            print(eight52_h)
-            print(eight52_i)
+#            print(eight52_h)
+#            print(eight52_i)
 
-            print(temp_location)
+#            print(temp_location)
 
             # Create empty holding record from template
             new_holdings_record = ET.fromstring(HOLDINGS_TEMPLATE)
@@ -295,22 +295,22 @@ def main():
 
             ET.dump(new_holdings_record)
 
-            payload = ET.tostring(new_holdings_record, encoding='utf-8')
-            print('\nnew holdings payload = ', payload)
+            payload = ET.tostring(new_holdings_record, encoding='UTF-8')
+            logging.info('new holdings payload = ' + payload)
 
 #  Create/Post the new holding record in the SCF    ##### Uncomment
             new_holding =''
             new_holding = requests.post(ALMA_SERVER + CREATE_HOLDING.format(mms_id=scf_mms_id), headers=scf_headers, data=payload)
             time.sleep(5)
             if (new_holding.status_code == requests.codes.ok):
-                print('\nnew hold content = ', new_holding.content)
-                print('holding encoding = ', new_holding.encoding)
+                logging.info('new hold content = ' + new_holding.content)
 
                 new_scf_hold_record = ET.fromstring(new_holding.content)
                 scf_holding_id = new_scf_hold_record.find('holding_id').text
-                print('new scf_holding_id = ', scf_holding_id)
+                logging.info('new scf_holding_id = ' + scf_holding_id)
             else:
-                print('did not create holding record, maybe there was a holding record')
+                logging.warning('did not create holding record, maybe there was a holding record')
+                logging.warning('No holding created ' + new_holding.text)
                 continue
 
 #  End if no holdings that match in SCF
@@ -322,20 +322,17 @@ def main():
         scf_item_record = requests.get(ALMA_SERVER + GET_ITEMS_LIST.format(mms_id=scf_mms_id, holding_id=scf_holding_id), params=scf_get_params)
 
         scf_item_list = ET.fromstring(scf_item_record.content)
-        print('\n\n')
 #        ET.dump(scf_item_list)
-#        print('\n\n')
 
 #  Need to interate through list to see if there is an item record.  If empty,
 #  Need to create the item.  If not, do we need to update??
 #####  Do we need sleep?  I know I do.  Do we need to update the item record?
         item_exists = 0
         for child in scf_item_list.iter('barcode'):
-            print('in the list')
-            print(child.text)
+            logging.debug(child.text)
             if (child.text  == barcode):
-                print('item is already in SCF')
-                print(barcode, ' does not need to be added.\n')
+                logging.info('item is already in SCF')
+                logging.info(barcode + ' does not need to be added.')
                 item_exists = 1     # flag
                 items_present += 1  # counter
                 break
@@ -343,14 +340,13 @@ def main():
 
 #  Create the new item record in the SCF
         if (item_exists == 0):
-            payload = ET.tostring(new_item_record, encoding='utf-8')
-            print('\nnew item record = ', payload)
+            payload = ET.tostring(new_item_record, encoding='UTF-8')
+            logging.info('new item record = ' + payload)
 
             new_scf_item = requests.post(ALMA_SERVER + CREATE_ITEM.format(mms_id=scf_mms_id, holding_id=scf_holding_id), headers=scf_headers, data=payload)
             time.sleep(5)
             if (new_scf_item.status_code != requests.codes.ok):
-                print('SCF item encode = ', new_scf_item.encoding)
-                print('A new item was not created ')
+                logging.warning('A new item was not created, bc =  ' + barcode)
                 items_present += 1
             else:
                 new_scf_item_record = ET.fromstring(new_scf_item.content)
@@ -361,8 +357,12 @@ def main():
 #  This should be end of processing - continue the loop.
 
 #  Report at end
-    print('Items created = ', items_created)
-    print('Items already present = ', items_present)
+    logging.warning('Items created = ' + str(items_created))
+    logging.warning('Items already present = ' + str(items_present))
+    logging.warning('Items not found/processed = ' + str(items_missing))
+    logging.warning('Total items read from file = ' + str(items_read))
+#    print('Items created = ', items_created)
+#    print('Items already present = ', items_present)
 
 
 if __name__ == '__main__':
