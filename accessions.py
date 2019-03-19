@@ -94,9 +94,9 @@ def main():
     lh = logging.FileHandler(LogFile)
     lh.setFormatter(formatter)
     logging.getLogger().addHandler(lh)
-    logging.getLogger().setLevel(logging.DEBUG)     #  Extreme debug
+#    logging.getLogger().setLevel(logging.DEBUG)     #  Extreme debug
 #    logging.getLogger().setLevel(logging.WARNING)   #  Setting for reporting
-#    logging.getLogger().setLevel(logging.INFO)      #  Setting for debugging
+    logging.getLogger().setLevel(logging.INFO)      #  Setting for debugging
 
 #  Initialize Counts for report
     items_read = 0
