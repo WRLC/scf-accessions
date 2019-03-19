@@ -94,9 +94,9 @@ def main():
     lh = logging.FileHandler(LogFile)
     lh.setFormatter(formatter)
     logging.getLogger().addHandler(lh)
-#    logging.getLogger().setLevel(logging.DEBUG)     #  Extreme debug
+    logging.getLogger().setLevel(logging.DEBUG)     #  Extreme debug
 #    logging.getLogger().setLevel(logging.WARNING)   #  Setting for reporting
-    logging.getLogger().setLevel(logging.INFO)      #  Setting for debugging
+#    logging.getLogger().setLevel(logging.INFO)      #  Setting for debugging
 
 #  Initialize Counts for report
     items_read = 0
@@ -235,15 +235,19 @@ def main():
             empty_bib = b'<bib />'
             r_create_bib = requests.post(ALMA_SERVER + CREATE_BIB.format(nz_mms_id), headers=scf_headers, data=empty_bib) 
             time.sleep(5)
+#  Get new bib with the scf's mms_id
             if (r_create_bib.status_code == requests.codes.ok):
-                scf_bib_create_content = ET.fromstring(r_create_bib.content)
-                scf_mms_id = scf_bib_create_content.find('./bib/mms_id').text
+                r_scf_bib = requests.get(ALMA_SERVER + GET_BIB_BY_NZ_MMS.format(nz_mms_id), params=scf_get_params)
 
-                logging.info('newly created mms_id = ' + scf_mms_id)
-            else:
-                logging.warning('Could not create SCF bib record for BC = ', barcode)
-                logging.warning('Could not create SCF bib ' + r_create_bib.text)
-                continue
+                if (r_scf_bib.status_code == requests.codes.ok):
+                # We have a bib record in scf
+                    r_scf_bib.content
+                    scf_bib_content = ET.fromstring(r_scf_bib.content)
+                    scf_mms_id = scf_bib_content.find('./bib/mms_id').text
+                    logging.info('newly created mms_id = ' + scf_mms_id)
+                else:
+                    logging.warning('Could not create SCF bib record for BC = ', barcode)
+                    continue
 
 #  Need to check if there is a holding record with item's location in SCF
 
@@ -262,7 +266,7 @@ def main():
                     scf_holding_id = child.find('holding_id').text
                     break
                 else:
-                    logging.info("Could not find holding in list")
+                    logging.info("Could not find holding in list for barcode, " + barcode)
 
 
 #  Get holding information from local IZ if not present in SCF
@@ -294,7 +298,7 @@ def main():
             new_holdings_record.find(EIGHT_FIVE_TWO_SUB_I).text = eight52_i
             new_holdings_record.find(EIGHT_FIVE_TWO_SUB_C).text = temp_location
 
-            ET.dump(new_holdings_record)
+#            ET.dump(new_holdings_record)
 
             payload = ET.tostring(new_holdings_record, encoding='UTF-8')
             logging.info('new holdings payload = ' + payload.decode('UTF-8'))
@@ -310,8 +314,7 @@ def main():
                 scf_holding_id = new_scf_hold_record.find('holding_id').text
                 logging.info('new scf_holding_id = ' + scf_holding_id)
             else:
-                logging.warning('did not create holding record, maybe there was a holding record')
-                logging.warning('No holding created ' + new_holding.text)
+                logging.warning('No holding created for barcode, ' + barcode)
                 continue
 
 #  End if no holdings that match in SCF
@@ -330,7 +333,6 @@ def main():
 #####  Do we need sleep?  I know I do.  Do we need to update the item record?
         item_exists = 0
         for child in scf_item_list.iter('barcode'):
-            logging.debug(child.text)
             if (child.text  == barcode):
                 logging.info('item is already in SCF')
                 logging.info(barcode + ' does not need to be added.')
@@ -362,8 +364,6 @@ def main():
     logging.warning('Items already present = ' + str(items_present))
     logging.warning('Items not found/processed = ' + str(items_missing))
     logging.warning('Total items read from file = ' + str(items_read))
-#    print('Items created = ', items_created)
-#    print('Items already present = ', items_present)
 
 
 if __name__ == '__main__':
