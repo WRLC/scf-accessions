@@ -257,6 +257,7 @@ def main():
             if (child.tag == 'holding'):
                 logging.info('looking for temp loc = ' + temp_location)
                 if (child.find('location').text == temp_location):
+                    logging.info('Holding ID:')
                     logging.info(child.find('holding_id').text)
                     scf_holding_id = child.find('holding_id').text
                     break
@@ -268,7 +269,7 @@ def main():
         if (scf_holding_id == 0):
             r_local_holding = requests.get(ALMA_SERVER + GET_HOLDING.format(mms_id=local_mms_id ,holding_id=holding_id), params={'apikey': FROM_IZ_KEY})
             local_holding = r_local_holding.content
-            logging.info('local holding = ' + local_holding)
+            logging.info('local holding = ' + r_local_holding.text)
  
             # parse owning holdings record
             owning_holdings_record = ET.fromstring(local_holding)
@@ -296,14 +297,14 @@ def main():
             ET.dump(new_holdings_record)
 
             payload = ET.tostring(new_holdings_record, encoding='UTF-8')
-            logging.info('new holdings payload = ' + payload)
+            logging.info('new holdings payload = ' + payload.decode('UTF-8'))
 
 #  Create/Post the new holding record in the SCF    ##### Uncomment
             new_holding =''
             new_holding = requests.post(ALMA_SERVER + CREATE_HOLDING.format(mms_id=scf_mms_id), headers=scf_headers, data=payload)
             time.sleep(5)
             if (new_holding.status_code == requests.codes.ok):
-                logging.info('new hold content = ' + new_holding.content)
+                logging.info('new hold content = ' + new_holding.text)
 
                 new_scf_hold_record = ET.fromstring(new_holding.content)
                 scf_holding_id = new_scf_hold_record.find('holding_id').text
@@ -341,7 +342,7 @@ def main():
 #  Create the new item record in the SCF
         if (item_exists == 0):
             payload = ET.tostring(new_item_record, encoding='UTF-8')
-            logging.info('new item record = ' + payload)
+            logging.info('new item record = ' + payload.decode('UTF-8'))
 
             new_scf_item = requests.post(ALMA_SERVER + CREATE_ITEM.format(mms_id=scf_mms_id, holding_id=scf_holding_id), headers=scf_headers, data=payload)
             time.sleep(5)
