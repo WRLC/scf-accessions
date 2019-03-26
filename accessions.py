@@ -70,6 +70,9 @@ def get_GT_location(loc):
     elif (loc == 'ocsvc'):
         SCF_LOC = 'wrlc gtvc'
         SCF_DESC = 'WRLC GT Video Recording Circ'
+    elif (loc == 'ocst'):
+        SCF_LOC = 'wrlc gtthe'
+        SCF_DESC = 'WRLC GT Theses'
     else:
         SCF_LOC = DEFAULT_LOCATION
         SCF_DESC = DEFAULT_LOC_DESC
