@@ -191,8 +191,8 @@ def main():
 #  Made the assumption that policy will be regular/circ.  Perhaps make this a calling parameter of the script in the future.  That would take care of periodicals and non-cirulating things.
 ##  Can we map some basic policies or is this okay?
         policy_element = item_data.find('policy')
-        policy_element.text = 'circ'
-        policy_element.set('desc', 'regular')
+        policy_element.text = 'GT circ'
+        policy_element.set('desc', 'GT default')
 
 #  Perhaps do more mapping of material type to Item policy above (ISSUE=perl?)
         if physical_material_type == 'ELEC':
