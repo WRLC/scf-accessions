@@ -282,7 +282,10 @@ def main():
             owning_holdings_record = ET.fromstring(local_holding)
 
             # extract 852 information
-            eight52_h = owning_holdings_record.find(EIGHT_FIVE_TWO_SUB_H).text
+            if (owning_holdings_record.find(EIGHT_FIVE_TWO_SUB_H) is None):
+                eight52_h = str("")
+            else:
+                eight52_h = owning_holdings_record.find(EIGHT_FIVE_TWO_SUB_H).text
             if (owning_holdings_record.find(EIGHT_FIVE_TWO_SUB_I) is None):
                 eight52_i = str('')
             else: 
