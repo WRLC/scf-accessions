@@ -115,6 +115,8 @@ def main():
         holding_id = 0
         pid = 0
 
+        print('Processing item ' + str(items_read) + ' bc=' + barcode)
+
         # step one, retrieve by barcode
         r_owner_master_record = requests.get(ALMA_SERVER + GET_BY_BARCODE.format(barcode), params = {'apikey': FROM_IZ_KEY})
 
