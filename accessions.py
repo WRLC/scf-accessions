@@ -132,13 +132,9 @@ def main():
         logging.debug('record content = ' + r_owner_master_record.text)
         logging.debug('url for full record = ' + r_owner_master_record.url)
 
-#  Set up xml tree so we can parse for data 
+#  Set up xml root tree so we can parse for data 
 
-        with open('test.xml', 'wb') as f:
-            f.write (r_owner_master_record.content)
-
-        tree = ET.parse('test.xml')
-        root = tree.getroot()
+        root = ET.fromstring(r_owner_master_record.content)
 
 #  Get item/bib_data/mms_id
 
@@ -174,7 +170,7 @@ def main():
 
 #  Create new item record but remove pid and physical_material_type if necesary
         new_item_record = ET.fromstring(b'<item></item>')
-        item_data = tree.find('./item_data')
+        item_data = root.find('./item_data')
         pid_element = item_data.find('pid')
         item_data.remove(pid_element)
 
@@ -355,7 +351,7 @@ def main():
             logging.info('new item record = ' + payload.decode('UTF-8'))
 
             new_scf_item = requests.post(ALMA_SERVER + CREATE_ITEM.format(mms_id=scf_mms_id, holding_id=scf_holding_id), headers=scf_headers, data=payload)
-            time.sleep(5)
+            time.sleep(2)
             if (new_scf_item.status_code != requests.codes.ok):
                 logging.warning('A new item was not created, bc =  ' + barcode)
                 items_present += 1
