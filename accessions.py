@@ -17,6 +17,7 @@ FROM_IZ_KEY = OWNING_IZ_KEYS[OWNING_IZ]
 UPDATE_IZ_KEY = IZ_READ_WRITE_KEYS[UPDATE_IZ]
 DEFAULT_LOCATION = DEFAULT_LOCATIONS[OWNING_IZ]
 DEFAULT_LOC_DESC = DEFAULT_LOC_DESCS[OWNING_IZ]
+DEFAULTS_FROM_IZ = DEFAULTS_IN_SCF[OWNING_IZ]
 SCF_LOC = ''
 SCF_DESC = ''
 
@@ -189,8 +190,10 @@ def main():
 #  Made the assumption that policy will be regular/circ.  Perhaps make this a calling parameter of the script in the future.  That would take care of periodicals and non-cirulating things.
 ##  Can we map some basic policies or is this okay?
         policy_element = item_data.find('policy')
-        policy_element.text = 'GT circ'
-        policy_element.set('desc', 'GT default')
+        policy_element.text = DEFAULTS_FROM_IZ['itempolicy']
+        policy_element.set('desc', DEFAULTS_FROM_IZ['idesc'])
+#        policy_element.text = 'GT circ'
+#        policy_element.set('desc', 'GT default')
 
 #  Perhaps do more mapping of material type to Item policy above (ISSUE=perl?)
         if physical_material_type == 'ELEC':
