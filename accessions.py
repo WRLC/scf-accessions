@@ -238,7 +238,7 @@ def main():
 #  Create a bib record for scf    
             empty_bib = b'<bib />'
             r_create_bib = requests.post(ALMA_SERVER + CREATE_BIB.format(nz_mms_id), headers=scf_headers, data=empty_bib) 
-            time.sleep(5)
+            time.sleep(2)
 #  Get new bib with the scf's mms_id
             if (r_create_bib.status_code == requests.codes.ok):
                 r_scf_bib = requests.get(ALMA_SERVER + GET_BIB_BY_NZ_MMS.format(nz_mms_id), params=scf_get_params)
@@ -313,7 +313,7 @@ def main():
 #  Create/Post the new holding record in the SCF    ##### Uncomment
             new_holding =''
             new_holding = requests.post(ALMA_SERVER + CREATE_HOLDING.format(mms_id=scf_mms_id), headers=scf_headers, data=payload)
-            time.sleep(5)
+            time.sleep(2)
             if (new_holding.status_code == requests.codes.ok):
                 logging.info('new hold content = ' + new_holding.text)
 
