@@ -111,7 +111,7 @@ def main():
     logging.warning('Name of File used, ' + REPORT_FILE)
     for barcode in read_report_generator(REPORT_FILE):
         items_read += 1
-        logging.warning('PROCESSING BARCODE, ' + barcode + 'BC # ' + str(items_read))
+        logging.warning('PROCESSING BARCODE, ' + barcode + '   BC # ' + str(items_read))
         local_mms_id = 0
         holding_id = 0
         pid = 0
