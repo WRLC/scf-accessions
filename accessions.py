@@ -225,6 +225,8 @@ def main():
         scf_mms_id = 0
         r_scf_bib = requests.get(ALMA_SERVER + GET_BIB_BY_NZ_MMS.format(nz_mms_id), params=scf_get_params)
 
+        time.sleep(2)    # added when conn closed problem
+
         if (r_scf_bib.status_code == requests.codes.ok):
             # We have a bib record in scf
             r_scf_bib.content
@@ -238,10 +240,12 @@ def main():
 #  Create a bib record for scf    
             empty_bib = b'<bib />'
             r_create_bib = requests.post(ALMA_SERVER + CREATE_BIB.format(nz_mms_id), headers=scf_headers, data=empty_bib) 
-            time.sleep(2)
+            time.sleep(5)
 #  Get new bib with the scf's mms_id
             if (r_create_bib.status_code == requests.codes.ok):
                 r_scf_bib = requests.get(ALMA_SERVER + GET_BIB_BY_NZ_MMS.format(nz_mms_id), params=scf_get_params)
+
+            time.sleep(2)   #  added when Conn closed problem
 
                 if (r_scf_bib.status_code == requests.codes.ok):
                 # We have a bib record in scf
@@ -256,6 +260,9 @@ def main():
 #  Need to check if there is a holding record with item's location in SCF
 
         r_scf_holding = requests.get(ALMA_SERVER + GET_HOLDINGS_LIST.format(mms_id=scf_mms_id), params=scf_get_params)
+
+        time.sleep(5)    # added when Conn closed problem
+
         logging.info('scf holdings url = ' + r_scf_holding.url)
         scf_hold_list = ET.fromstring(r_scf_holding.content)
 
@@ -276,6 +283,9 @@ def main():
 #  Get holding information from local IZ if not present in SCF
         if (scf_holding_id == 0):
             r_local_holding = requests.get(ALMA_SERVER + GET_HOLDING.format(mms_id=local_mms_id ,holding_id=holding_id), params={'apikey': FROM_IZ_KEY})
+
+            time.sleep(2)    # added when Conn closed problem
+
             local_holding = r_local_holding.content
             logging.info('local holding = ' + r_local_holding.text)
  
@@ -313,7 +323,7 @@ def main():
 #  Create/Post the new holding record in the SCF    ##### Uncomment
             new_holding =''
             new_holding = requests.post(ALMA_SERVER + CREATE_HOLDING.format(mms_id=scf_mms_id), headers=scf_headers, data=payload)
-            time.sleep(2)
+            time.sleep(5)
             if (new_holding.status_code == requests.codes.ok):
                 logging.info('new hold content = ' + new_holding.text)
 
@@ -331,6 +341,8 @@ def main():
 #  Check to see if item has already been created
 
         scf_item_record = requests.get(ALMA_SERVER + GET_ITEMS_LIST.format(mms_id=scf_mms_id, holding_id=scf_holding_id), params=scf_get_params)
+
+        time.sleep(2)    #  added when Conn closed problem
 
         scf_item_list = ET.fromstring(scf_item_record.content)
 #        ET.dump(scf_item_list)
@@ -354,7 +366,7 @@ def main():
             logging.info('new item record = ' + payload.decode('UTF-8'))
 
             new_scf_item = requests.post(ALMA_SERVER + CREATE_ITEM.format(mms_id=scf_mms_id, holding_id=scf_holding_id), headers=scf_headers, data=payload)
-            time.sleep(2)
+            time.sleep(5)
             if (new_scf_item.status_code != requests.codes.ok):
                 logging.warning('A new item was not created, bc =  ' + barcode)
                 items_present += 1
