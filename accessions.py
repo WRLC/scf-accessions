@@ -245,7 +245,7 @@ def main():
             if (r_create_bib.status_code == requests.codes.ok):
                 r_scf_bib = requests.get(ALMA_SERVER + GET_BIB_BY_NZ_MMS.format(nz_mms_id), params=scf_get_params)
 
-            time.sleep(2)   #  added when Conn closed problem
+                time.sleep(2)   #  added when Conn closed problem
 
                 if (r_scf_bib.status_code == requests.codes.ok):
                 # We have a bib record in scf
