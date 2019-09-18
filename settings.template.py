@@ -1,15 +1,41 @@
 ALMA_SERVER = 'https://api-na.hosted.exlibrisgroup.com'
 
-# These are read-only keys of all IZs that can be
-# sources of linked accounts
-OWNING_IZ_KEYS = { 
-    '4102' : 'apikey1', #readable name1 
-    '4103' : 'apikey2', #readable name2
+# Metadata for IZs
+LIBRARY = {
+  '4102': {  # readable name1
+    'library': '',
+    'libdesc': '',
+    'defaults_in_scf': {  # Owning IZ's default location in SCF
+      'loc': '',
+      'ldesc': '',
+      'itempolicy': '',
+      'idesc': '',
+    },
+    'accession_defaults': {  # Accessioning IZ's default location for incoming items from SCF
+      'loc': '',
+      'ldesc': '',
+      'itempolicy': '',
+      'idesc': '',
+    },
+    'readkey': '',  # These are read-only keys of all IZs that can be sources of bib records
+    'writekey': '',  # Read write alma bib api keys
+  },
+    '4103': {  # readable name2
+        'library': '',
+        'libdesc': '',
+        'defaults_in_scf': {  # Owning IZ's default location in SCF
+            'loc': '',
+            'ldesc': '',
+            'itempolicy': '',
+            'idesc': '',
+        },
+        'accession_defaults': {  # Accessioning IZ's default location for incoming items from SCF
+            'loc': '',
+            'ldesc': '',
+            'itempolicy': '',
+            'idesc': '',
+        },
+        'readkey': '',  # These are read-only keys of all IZs that can be sources of bib records
+        'writekey': '',  # Read write alma bib api keys
+    },
 }
-
-# Read write alam users api keys
-IZ_READ_WRITE_KEYS = {
-    'inst1' : 'apikey3',
-    'inst2' : 'apikey4',
-}
-
