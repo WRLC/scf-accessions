@@ -10,14 +10,14 @@ import logging
 #  Local keys and settings
 from settings import *
 
-UPDATE_IZ = 'scf' 
-OWNING_IZ = sys.argv[1]
+UPDATE_IZ = sys.argv[1] 
+SOURCE_IZ = '4617'
 REPORT_FILE = sys.argv[2]
-FROM_IZ_KEY = OWNING_IZ_KEYS[OWNING_IZ]
+FROM_IZ_KEY = SOURCE_IZ_KEYS[SOURCE_IZ]
 UPDATE_IZ_KEY = IZ_READ_WRITE_KEYS[UPDATE_IZ]
-DEFAULT_LOCATION = DEFAULT_LOCATIONS[OWNING_IZ]
-DEFAULT_LOC_DESC = DEFAULT_LOC_DESCS[OWNING_IZ]
-DEFAULTS_FROM_IZ = DEFAULTS_IN_SCF[OWNING_IZ]
+DEFAULT_LOCATION = DEFAULT_LOCATIONS[UPDATE_IZ]
+DEFAULT_LOC_DESC = DEFAULT_LOC_DESCS[UPDATE_IZ]
+DEFAULTS_FROM_IZ = DEFAULTS_IN_UPDATE_IZ[UPDATE_IZ]
 SCF_LOC = ''
 SCF_DESC = ''
 
@@ -93,7 +93,7 @@ def read_report_generator(report):
 def main():
 
 #  Setting up logging to catch problem barcodes and other issues
-    LogFile = UPDATE_IZ + 'ACC' + OWNING_IZ + 'log.' + time.strftime('%m%d%H%M', time.localtime())
+    LogFile = UPDATE_IZ + 'ACC' + SOURCE_IZ + 'log.' + time.strftime('%m%d%H%M', time.localtime())
     formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s', datefmt='%m/%d/%Y %H:%M:%S')
     lh = logging.FileHandler(LogFile)
     lh.setFormatter(formatter)
@@ -149,7 +149,7 @@ def main():
         temp_location = root.find('./holding_data/temp_location').text
         temp_loc_desc = root.find('./holding_data/temp_location').get('desc') 
         if (temp_location is None):
-            if ( OWNING_IZ ==  '4111' ):
+            if ( SOURCE_IZ ==  '4111' ):
                 perm_loc = root.find('./item_data/location').text
                 logging.debug('perm_loc = ' + perm_loc)
                 GTLoc = get_GT_location(perm_loc)
