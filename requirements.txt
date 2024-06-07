@@ -40,7 +40,7 @@ python-dateutil==2.8.2
 pyzmq==25.0.0
 qtconsole==5.4.0
 requests==2.32.0
-Send2Trash==1.8.0
+Send2Trash==1.8.3
 six==1.16.0
 terminado==0.17.1
 testpath==0.6.0
