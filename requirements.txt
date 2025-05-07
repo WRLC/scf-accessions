@@ -8,7 +8,7 @@ async-lru==2.0.5
 attrs==25.3.0
 babel==2.17.0
 backcall==0.2.0
-beautifulsoup4==4.13.3
+beautifulsoup4==4.13.4
 bleach==6.2.0
 certifi==2025.1.31
 cffi==1.17.1
@@ -24,7 +24,7 @@ executing==2.2.0
 fastjsonschema==2.21.1
 fqdn==1.5.1
 h11==0.16.0
-httpcore==1.0.7
+httpcore==1.0.9
 httpx==0.28.1
 idna==3.10
 importlib_metadata==8.6.1
