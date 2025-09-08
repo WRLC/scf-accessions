@@ -9,3 +9,33 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+      time: "09:00"
+      timezone: "America/New_York"
+    target-branch: "feature/dependency-updates"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      python:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "terraform" # See documentation for possible values
+    directory: "/" # Location of package manifests
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    target-branch: "feature/dependency-updates"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      terraform:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
